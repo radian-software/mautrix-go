@@ -23,7 +23,6 @@ import (
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/exsync"
 	"maunium.net/go/mautrix/id"
-	"maunium.net/go/mautrix/networkchange"
 	"maunium.net/go/mautrix/pushrules"
 )
 
@@ -565,7 +564,7 @@ func (cli *Client) shouldRetry(res *http.Response) bool {
 func (cli *Client) executeCompiledRequest(req *http.Request, retries int, backoff time.Duration, responseJSON interface{}, handler ClientResponseHandler) ([]byte, error) {
 	cli.RequestStart(req)
 	startTime := time.Now()
-	res, err := networkchange.DoRequest(cli.Client, cli.NetworkChangeEvent, req)
+	res, err := DoRequest(cli.Client, cli.NetworkChangeEvent, req)
 	duration := time.Now().Sub(startTime)
 	if res != nil {
 		defer res.Body.Close()
@@ -1374,7 +1373,7 @@ func (cli *Client) UploadLink(link string) (*RespMediaUpload, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := networkchange.DoRequest(cli.Client, cli.NetworkChangeEvent, req)
+	res, err := DoRequest(cli.Client, cli.NetworkChangeEvent, req)
 	if res != nil {
 		defer res.Body.Close()
 	}
@@ -1424,7 +1423,7 @@ func (cli *Client) doMediaRetry(req *http.Request, cause error, retries int, bac
 func (cli *Client) doMediaRequest(req *http.Request, retries int, backoff time.Duration) (*http.Response, error) {
 	cli.RequestStart(req)
 	startTime := time.Now()
-	res, err := networkchange.DoRequest(cli.Client, cli.NetworkChangeEvent, req)
+	res, err := DoRequest(cli.Client, cli.NetworkChangeEvent, req)
 	duration := time.Now().Sub(startTime)
 	if err != nil {
 		if retries > 0 {

@@ -1,4 +1,4 @@
-package networkchange
+package mautrix
 
 import (
 	"bytes"
