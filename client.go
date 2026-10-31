@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -85,7 +86,10 @@ type Client struct {
 
 	syncingID uint32 // Identifies the current Sync. Only one Sync can be active at any given time.
 
-	NetworkChangeEvent *exsync.Event
+	NetworkChangeEvent         *exsync.Event
+	resetPendingRequestsEvent  *exsync.Event
+	networkChangeEventInitDone bool
+	networkChangeEventLock     sync.Mutex
 }
 
 type ClientWellKnown struct {
@@ -564,7 +568,7 @@ func (cli *Client) shouldRetry(res *http.Response) bool {
 func (cli *Client) executeCompiledRequest(req *http.Request, retries int, backoff time.Duration, responseJSON interface{}, handler ClientResponseHandler) ([]byte, error) {
 	cli.RequestStart(req)
 	startTime := time.Now()
-	res, err := DoRequest(cli.Client, cli.NetworkChangeEvent, req)
+	res, err := cli.doRequest(req)
 	duration := time.Now().Sub(startTime)
 	if res != nil {
 		defer res.Body.Close()
@@ -1373,7 +1377,7 @@ func (cli *Client) UploadLink(link string) (*RespMediaUpload, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := DoRequest(cli.Client, cli.NetworkChangeEvent, req)
+	res, err := cli.doRequest(req)
 	if res != nil {
 		defer res.Body.Close()
 	}
@@ -1423,7 +1427,7 @@ func (cli *Client) doMediaRetry(req *http.Request, cause error, retries int, bac
 func (cli *Client) doMediaRequest(req *http.Request, retries int, backoff time.Duration) (*http.Response, error) {
 	cli.RequestStart(req)
 	startTime := time.Now()
-	res, err := DoRequest(cli.Client, cli.NetworkChangeEvent, req)
+	res, err := cli.doRequest(req)
 	duration := time.Now().Sub(startTime)
 	if err != nil {
 		if retries > 0 {
