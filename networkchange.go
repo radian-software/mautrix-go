@@ -13,7 +13,7 @@ import (
 )
 
 var errEscapedContext error = errors.New("escaped context, this is a programming error")
-var errNetworkChange error = errors.New("network change")
+var ErrNetworkChange error = errors.New("network change")
 
 func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 	if cli.NetworkChangeEvent == nil {
@@ -25,7 +25,7 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 		go func() {
 			for {
 				cli.NetworkChangeEvent.Wait(context.Background())
-				cli.Log.Debug().Msg("Replacing HTTP transport due to network change")
+				cli.Log.Info().Msg("Replacing HTTP transport due to network change")
 				trans := cli.Client.Transport
 				if trans == nil {
 					trans = http.DefaultTransport
@@ -49,13 +49,13 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 		go func() {
 			cli.resetPendingRequestsEvent.Wait(ctx)
 			if ctx.Err() == nil {
-				cancel(errNetworkChange)
+				cancel(ErrNetworkChange)
 			}
 		}()
 		startTime := time.Now()
 		resp, err := cli.Client.Do(req.WithContext(ctx))
 		duration := time.Since(startTime)
-		if context.Cause(ctx) == errNetworkChange {
+		if context.Cause(ctx) == ErrNetworkChange {
 			zerolog.Ctx(ctx).Debug().
 				Str("method", req.Method).
 				Str("url", req.URL.String()).

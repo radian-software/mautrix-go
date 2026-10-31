@@ -9,6 +9,7 @@ import (
 
 	"go.mau.fi/util/jsontime"
 
+	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/appservice"
 )
 
@@ -46,17 +47,32 @@ func (br *Bridge) startWebsocket(wg *sync.WaitGroup) {
 	reconnectBackoff := defaultReconnectBackoff
 	lastDisconnect := time.Now().UnixNano()
 	br.wsStopped = make(chan struct{})
+	runningCtx, cancelRunning := context.WithCancel(context.Background())
 	defer func() {
 		log.Debug().Msg("Appservice websocket loop finished")
 		close(br.wsStopped)
+		cancelRunning()
 	}()
 	addr := br.Config.Homeserver.WSProxy
 	if addr == "" {
 		addr = br.Config.Homeserver.Address
 	}
+	go func() {
+		for {
+			br.NetworkChangeEvent.Wait(runningCtx)
+			if runningCtx.Err() != nil {
+				return
+			}
+			log.Info().Msg("Restarting websocket due to network change")
+			br.AS.StopWebsocket(mautrix.ErrNetworkChange)
+		}
+	}()
 	for {
+		immediateReconnect := false
 		err := br.AS.StartWebsocket(addr, onConnect)
-		if errors.Is(err, appservice.ErrWebsocketManualStop) {
+		if errors.Is(err, mautrix.ErrNetworkChange) {
+			immediateReconnect = true
+		} else if errors.Is(err, appservice.ErrWebsocketManualStop) {
 			return
 		} else if closeCommand := (&appservice.CloseCommand{}); errors.As(err, &closeCommand) && closeCommand.Status == appservice.MeowConnectionReplaced {
 			log.Info().Msg("Appservice websocket closed by another instance of the bridge, shutting down...")
@@ -68,18 +84,22 @@ func (br *Bridge) startWebsocket(wg *sync.WaitGroup) {
 		if br.Stopping {
 			return
 		}
+		currentReconnectBackoff := time.Duration(0)
 		now := time.Now().UnixNano()
-		if lastDisconnect+reconnectBackoffReset.Nanoseconds() < now {
-			reconnectBackoff = defaultReconnectBackoff
-		} else {
-			reconnectBackoff *= 2
-			if reconnectBackoff > maxReconnectBackoff {
-				reconnectBackoff = maxReconnectBackoff
+		if !immediateReconnect {
+			if lastDisconnect+reconnectBackoffReset.Nanoseconds() < now {
+				reconnectBackoff = defaultReconnectBackoff
+			} else {
+				reconnectBackoff *= 2
+				if reconnectBackoff > maxReconnectBackoff {
+					reconnectBackoff = maxReconnectBackoff
+				}
 			}
+			currentReconnectBackoff = reconnectBackoff
+			lastDisconnect = now
 		}
-		lastDisconnect = now
 		log.Info().
-			Int("backoff_seconds", int(reconnectBackoff.Seconds())).
+			Int("backoff_seconds", int(currentReconnectBackoff.Seconds())).
 			Msg("Websocket disconnected, reconnecting...")
 		select {
 		case <-br.wsShortCircuitReconnectBackoff:
