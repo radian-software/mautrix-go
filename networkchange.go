@@ -6,7 +6,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"time"
 
+	"github.com/rs/zerolog"
 	"maunium.net/go/mautrix/exsync"
 )
 
@@ -23,6 +25,7 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 		go func() {
 			for {
 				cli.NetworkChangeEvent.Wait(context.Background())
+				cli.Log.Debug().Msg("Replacing HTTP transport due to network change")
 				trans := cli.Client.Transport
 				if trans == nil {
 					trans = http.DefaultTransport
@@ -49,8 +52,15 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 				cancel(errNetworkChange)
 			}
 		}()
+		startTime := time.Now()
 		resp, err := cli.Client.Do(req.WithContext(ctx))
-		if errors.Is(err, errNetworkChange) {
+		duration := time.Since(startTime)
+		if context.Cause(ctx) == errNetworkChange {
+			zerolog.Ctx(ctx).Debug().
+				Str("method", req.Method).
+				Str("url", req.URL.String()).
+				Dur("duration", duration).
+				Msg("Retrying request immediately due to network change")
 			continue
 		}
 		if err == nil {
