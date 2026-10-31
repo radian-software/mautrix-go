@@ -26,11 +26,13 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 			for {
 				cli.NetworkChangeEvent.Wait(context.Background())
 				cli.Log.Info().Msg("Replacing HTTP transport due to network change")
+				cli.networkChangeEventLock.Lock()
 				trans := cli.Client.Transport
 				if trans == nil {
 					trans = http.DefaultTransport
 				}
 				cli.Client.Transport = trans.(*http.Transport).Clone()
+				cli.networkChangeEventLock.Unlock()
 				cli.resetPendingRequestsEvent.Notify()
 			}
 		}()
