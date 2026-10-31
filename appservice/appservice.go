@@ -28,6 +28,7 @@ import (
 
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/exsync"
 	"maunium.net/go/mautrix/id"
 )
 
@@ -154,6 +155,8 @@ type AppService struct {
 
 	DoublePuppetValue string
 	GetProfile        func(userID id.UserID, roomID id.RoomID) *event.MemberEventContent
+
+	NetworkChangeEvent *exsync.Event
 }
 
 const DoublePuppetKey = "fi.mau.double_puppet_source"
@@ -310,6 +313,7 @@ func (as *AppService) NewMautrixClient(userID id.UserID) *mautrix.Client {
 		Client:              as.HTTPClient,
 		DefaultHTTPRetries:  as.DefaultHTTPRetries,
 		SpecVersions:        as.SpecVersions,
+		NetworkChangeEvent:  as.NetworkChangeEvent,
 	}
 	client.Logger = maulogadapt.ZeroAsMau(&client.Log)
 	return client

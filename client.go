@@ -21,6 +21,7 @@ import (
 	"maunium.net/go/maulogger/v2/maulogadapt"
 
 	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/exsync"
 	"maunium.net/go/mautrix/id"
 	"maunium.net/go/mautrix/pushrules"
 )
@@ -83,6 +84,8 @@ type Client struct {
 	SetAppServiceUserID bool
 
 	syncingID uint32 // Identifies the current Sync. Only one Sync can be active at any given time.
+
+	NetworkChangeEvent *exsync.Event
 }
 
 type ClientWellKnown struct {

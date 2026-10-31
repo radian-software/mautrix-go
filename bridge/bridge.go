@@ -36,6 +36,7 @@ import (
 	"maunium.net/go/mautrix/bridge/bridgeconfig"
 	"maunium.net/go/mautrix/bridge/status"
 	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/exsync"
 	"maunium.net/go/mautrix/id"
 	"maunium.net/go/mautrix/sqlstatestore"
 )
@@ -206,6 +207,8 @@ type Bridge struct {
 	wsStopped                      chan struct{}
 	wsShortCircuitReconnectBackoff chan struct{}
 	wsStartupWait                  *sync.WaitGroup
+
+	NetworkChangeEvent *exsync.Event
 }
 
 type Crypto interface {
@@ -556,6 +559,7 @@ func (br *Bridge) init() {
 	br.StateStore = sqlstatestore.NewSQLStateStore(br.DB, dbutil.ZeroLogger(br.ZLog.With().Str("db_section", "matrix_state").Logger()), true)
 
 	br.AS = br.Config.MakeAppService()
+	br.AS.NetworkChangeEvent = br.NetworkChangeEvent
 	br.AS.DoublePuppetValue = br.Name
 	br.AS.GetProfile = br.getProfile
 	br.AS.Log = *br.ZLog
