@@ -45,7 +45,9 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 		ctx, cancel := context.WithCancelCause(req.Context())
 		go func() {
 			cli.resetPendingRequestsEvent.Wait(ctx)
-			cancel(errNetworkChange)
+			if ctx.Err() == nil {
+				cancel(errNetworkChange)
+			}
 		}()
 		resp, err := cli.Client.Do(req.WithContext(ctx))
 		if errors.Is(err, errNetworkChange) {
