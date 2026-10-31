@@ -29,7 +29,7 @@ func DoRequest(client *http.Client, networkChange *exsync.Event, req *http.Reque
 			networkChange.Wait(ctx)
 			cancel(errNetworkChange)
 		}()
-		resp, err := client.Do(req)
+		resp, err := client.Do(req.WithContext(ctx))
 		if errors.Is(err, errNetworkChange) {
 			trans := client.Transport
 			if trans == nil {
